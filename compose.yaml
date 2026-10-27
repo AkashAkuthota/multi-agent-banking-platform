@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: banking_demo
+      POSTGRES_USER: banking
+      POSTGRES_PASSWORD: banking
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banking -d banking_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/migrations/000_demo_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./scripts/docker-init/02-demo-fixtures.sql:/docker-entrypoint-initdb.d/02-demo-fixtures.sql:ro
+      - ./scripts/migrations/001_daily_limit_workflow.sql:/docker-entrypoint-initdb.d/03-daily-limit-workflow.sql:ro
+      - ./scripts/migrations/002_banking_commands.sql:/docker-entrypoint-initdb.d/04-banking-commands.sql:ro
+      - ./scripts/migrations/003_chat_sessions.sql:/docker-entrypoint-initdb.d/05-chat-sessions.sql:ro
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://banking:banking@db:5432/banking_demo
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-replace-with-a-long-random-local-secret}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      SESSION_ENCRYPTION_KEY: ${SESSION_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      CHAT_SESSION_TTL_MINUTES: ${CHAT_SESSION_TTL_MINUTES:-30}
+      API_DOCS_ENABLED: ${API_DOCS_ENABLED:-true}
+      LOGIN_RATE_LIMIT_ATTEMPTS: ${LOGIN_RATE_LIMIT_ATTEMPTS:-5}
+      LOGIN_RATE_LIMIT_WINDOW_SECONDS: ${LOGIN_RATE_LIMIT_WINDOW_SECONDS:-900}
+      # Docker's default is deliberately local-only. Set LLM_DOCKER_PROVIDER
+      # explicitly if a remote provider is intentionally required.
+      LLM_PROVIDER: ${LLM_DOCKER_PROVIDER:-ollama}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+      # The application container must reach Ollama through the Docker host,
+      # not the host-only 127.0.0.1 address used by native development.
+      OLLAMA_BASE_URL: ${OLLAMA_DOCKER_BASE_URL:-http://host.docker.internal:11434/v1/}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:1.7b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:

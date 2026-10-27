@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secure Multi-Agent Banking Assistant</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    body { background: radial-gradient(circle at top, #172a4a 0, #0b1220 42rem); color: #e5edf9; margin: 0; }
+    main { max-width: 760px; margin: 0 auto; padding: 36px 20px 56px; }
+    h1 { margin: 8px 0 6px; font-size: clamp(1.7rem, 4vw, 2.2rem); letter-spacing: -.02em; }
+    h2 { font-size: 1.12rem; margin: 0; }
+    .muted { color: #9eafc7; margin: 0 0 24px; }
+    .eyebrow { color: #8fb7ff; font-size: .78rem; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+    .notice { background: #102d35; border: 1px solid #21606e; border-radius: 10px; color: #c5eaf0; font-size: .9rem; line-height: 1.45; margin: 20px 0; padding: 12px 14px; }
+    .panel, .message { background: rgba(19, 31, 51, .94); border: 1px solid #273956; border-radius: 12px; padding: 18px; }
+    .panel { margin-bottom: 18px; }
+    form { display: grid; gap: 12px; }
+    label { font-size: .9rem; color: #bdcae0; }
+    input, textarea { box-sizing: border-box; width: 100%; border: 1px solid #405576; border-radius: 8px; background: #0b1526; color: inherit; padding: 10px; font: inherit; }
+    textarea { min-height: 88px; resize: vertical; }
+    button { border: 0; border-radius: 8px; background: #4f8cff; color: white; cursor: pointer; font: inherit; font-weight: 650; padding: 10px 14px; }
+    button.secondary { background: #263a58; }
+    button.tertiary { background: transparent; border: 1px solid #405576; color: #c7d8f4; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    #chat { display: none; }
+    #messages { display: grid; gap: 12px; margin: 18px 0; }
+    .message.user { background: #18345e; margin-left: 64px; }
+    .message.assistant { margin-right: 24px; }
+    .message p { margin: 0; white-space: pre-wrap; line-height: 1.45; }
+    .options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .options button { background: #264c3f; }
+    .status { color: #f4cc77; min-height: 1.25rem; font-size: .9rem; }
+    .error { color: #ff9a9a; }
+    .row { align-items: center; display: flex; gap: 10px; justify-content: space-between; }
+    .small { color: #9eafc7; font-size: .82rem; }
+    .login-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; }
+    .footer { color: #71829d; font-size: .8rem; line-height: 1.45; margin-top: 28px; text-align: center; }
+    #pending { display: none; margin-bottom: 18px; }
+    #pending p { margin: 0 0 12px; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">Portfolio sandbox</div>
+      <h1>Secure Multi-Agent Banking Assistant</h1>
+      <p class="muted">Policy-controlled AI workflows for account information and safe banking-command proposals.</p>
+    </header>
+
+    <aside class="notice" aria-label="Demo safety notice">
+      <strong>Synthetic demo only.</strong> No real banking data is used. A proposal never applies a change until you explicitly confirm it.
+    </aside>
+
+    <section id="login" class="panel" aria-labelledby="login-title">
+      <h2 id="login-title">Sign in</h2>
+      <p class="small">Use the public synthetic demo account or enter your local development credentials.</p>
+      <form id="login-form">
+        <label>Email <input id="email" type="email" autocomplete="username" required></label>
+        <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+        <div class="login-actions">
+          <button type="submit">Sign in</button>
+          <button id="use-demo" type="button" class="tertiary">Use demo account</button>
+        </div>
+        <div id="login-status" class="status" aria-live="polite"></div>
+      </form>
+    </section>
+
+    <section id="chat" aria-labelledby="chat-title">
+      <div class="row">
+        <h2 id="chat-title">Assistant</h2>
+        <button id="sign-out" type="button" class="secondary">Sign out</button>
+      </div>
+      <p class="small">Read account details, review transactions, or prepare a policy-checked request. Confirmation is a dedicated action on the stored proposal — typing yes will not apply a change.</p>
+      <section id="pending" class="panel" aria-label="Pending proposal">
+        <p id="pending-summary"></p>
+        <div class="login-actions">
+          <button id="confirm-pending" type="button">Confirm proposal</button>
+          <button id="cancel-pending" type="button" class="secondary">Cancel proposal</button>
+        </div>
+      </section>
+      <div id="messages" aria-live="polite"></div>
+      <section class="panel">
+        <form id="chat-form">
+          <label for="message">Message</label>
+          <textarea id="message" maxlength="4000" placeholder="For example: What is my current balance?" required></textarea>
+          <button id="send" type="submit">Send</button>
+          <div id="chat-status" class="status" aria-live="polite"></div>
+        </form>
+      </section>
+    </section>
+
+    <footer class="footer">Built for portfolio demonstration with synthetic data and explicit write confirmation.</footer>
+  </main>
+  <script>
+    let accessToken = null;
+    let lastMessage = "";
+    let pendingProposal = null;
+    const login = document.querySelector("#login");
+    const chat = document.querySelector("#chat");
+    const messages = document.querySelector("#messages");
+    const loginStatus = document.querySelector("#login-status");
+    const chatStatus = document.querySelector("#chat-status");
+    const composer = document.querySelector("#message");
+
+    function escapeHtml(value) {
+      const element = document.createElement("div");
+      element.textContent = String(value);
+      return element.innerHTML;
+    }
+
+    function showStatus(element, message, isError = false) {
+      element.textContent = message;
+      element.classList.toggle("error", isError);
+    }
+
+    function addMessage(role, text, extras = "") {
+      const message = document.createElement("article");
+      message.className = `message ${role}`;
+      message.innerHTML = `<p>${escapeHtml(text)}</p>${extras}`;
+      messages.append(message);
+      message.scrollIntoView({ block: "nearest" });
+      return message;
+    }
+
+    async function api(path, options = {}) {
+      const headers = { ...(options.headers || {}) };
+      if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+      const response = await fetch(path, { ...options, headers });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401) signOut();
+        throw new Error(payload.detail || "The request could not be completed.");
+      }
+      return payload;
+    }
+
+    function renderPending() {
+      const panel = document.querySelector("#pending");
+      const summary = document.querySelector("#pending-summary");
+      if (!pendingProposal) {
+        panel.style.display = "none";
+        summary.textContent = "";
+        return;
+      }
+      summary.textContent = `Pending ${pendingProposal.kind.replaceAll("_", " ")} ${pendingProposal.request_id} is stored in this session. Confirm or cancel here — a reply of yes will not apply it.`;
+      panel.style.display = "block";
+    }
+
+    function setPendingFromPayload(payload) {
+      pendingProposal = payload.pending_proposal || null;
+      renderPending();
+    }
+
+    async function decidePending(decision) {
+      document.querySelector("#confirm-pending").disabled = true;
+      document.querySelector("#cancel-pending").disabled = true;
+      showStatus(chatStatus, "Working…");
+      try {
+        const payload = await api(`/chat/pending-proposal/${decision}`, {
+          method: "POST",
+        });
+        addMessage("assistant", payload.answer || "Request completed.");
+        setPendingFromPayload(payload);
+      } catch (error) {
+        addMessage("assistant", error.message);
+      } finally {
+        document.querySelector("#confirm-pending").disabled = false;
+        document.querySelector("#cancel-pending").disabled = false;
+        showStatus(chatStatus, "");
+      }
+    }
+
+    function signOut() {
+      accessToken = null;
+      pendingProposal = null;
+      renderPending();
+      messages.replaceChildren();
+      chat.style.display = "none";
+      login.style.display = "block";
+      document.querySelector("#password").value = "";
+      showStatus(chatStatus, "");
+    }
+
+    document.querySelector("#login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      showStatus(loginStatus, "Signing in…");
+      try {
+        const payload = await api("/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: document.querySelector("#email").value,
+            password: document.querySelector("#password").value,
+          }),
+        });
+        accessToken = payload.access_token;
+        login.style.display = "none";
+        chat.style.display = "block";
+        showStatus(loginStatus, "");
+        addMessage("assistant", "You are signed in. How can I help?");
+        composer.focus();
+      } catch (error) {
+        showStatus(loginStatus, error.message, true);
+      }
+    });
+
+    document.querySelector("#sign-out").addEventListener("click", signOut);
+    document.querySelector("#confirm-pending").addEventListener("click", () => {
+      decidePending("confirm");
+    });
+    document.querySelector("#cancel-pending").addEventListener("click", () => {
+      decidePending("cancel");
+    });
+
+    document.querySelector("#use-demo").addEventListener("click", () => {
+      document.querySelector("#email").value = "demo.customer@banking.local";
+      document.querySelector("#password").value = "DemoBank@2026";
+      document.querySelector("#password").focus();
+      showStatus(loginStatus, "Demo credentials filled. Select Sign in to continue.");
+    });
+
+    document.querySelector("#chat-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const text = composer.value.trim();
+      if (!text) return;
+      lastMessage = text;
+      addMessage("user", text);
+      composer.value = "";
+      document.querySelector("#send").disabled = true;
+      showStatus(chatStatus, "Working…");
+      try {
+        const payload = await api("/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": crypto.randomUUID(),
+          },
+          body: JSON.stringify({ message: text }),
+        });
+        const article = addMessage("assistant", payload.answer || "Request completed.");
+        if (Array.isArray(payload.account_options)) {
+          const options = document.createElement("div");
+          options.className = "options";
+          for (const account of payload.account_options) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = `${account.account_type}: ${account.account_id}`;
+            button.addEventListener("click", () => {
+              const amount = /\b(?:to|at)\s*(?:inr\s*)?(\d+(?:\.\d+)?)/i.exec(lastMessage)?.[1] || "";
+              composer.value = `Increase the daily limit on ${account.account_id}${amount ? ` to ${amount}` : ""}`;
+              composer.focus();
+            });
+            options.append(button);
+          }
+          article.append(options);
+        }
+        setPendingFromPayload(payload);
+      } catch (error) {
+        addMessage("assistant", error.message);
+      } finally {
+        document.querySelector("#send").disabled = false;
+        showStatus(chatStatus, "");
+      }
+    });
+  </script>
+</body>
+</html>

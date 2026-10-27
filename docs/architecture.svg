@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Multi-Agent Banking Platform Architecture</title>
+  <desc id="desc">Read requests and sandbox banking commands share an authenticated chat interface. Commands use proposal-only MCP tools and require a later explicit chat confirmation or cancellation with the exact proposal ID.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="greenArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#16a34a"/>
+    </marker>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .title { font-size: 30px; font-weight: 700; }
+      .subtitle { font-size: 15px; fill: #475569; }
+      .section { font-size: 18px; font-weight: 700; fill: #1e293b; }
+      .node-title { font-size: 15px; font-weight: 650; }
+      .node-copy { font-size: 12px; fill: #475569; }
+      .edge-label { font-size: 12px; font-weight: 600; fill: #334155; }
+      .note { font-size: 13px; fill: #334155; }
+      .frame { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; }
+      .read-frame { fill: #eff6ff; stroke: #93c5fd; stroke-width: 1.5; }
+      .command-frame { fill: #f0fdf4; stroke: #86efac; stroke-width: 1.5; }
+      .node { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.5; }
+      .read-node { fill: #ffffff; stroke: #60a5fa; stroke-width: 1.7; }
+      .command-node { fill: #ffffff; stroke: #4ade80; stroke-width: 1.7; }
+      .llm-node { fill: #fff7ed; stroke: #fb923c; stroke-width: 1.7; }
+      .db-node { fill: #fefce8; stroke: #eab308; stroke-width: 1.7; }
+      .line { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+      .read-line { fill: none; stroke: #2563eb; stroke-width: 2.2; marker-end: url(#blueArrow); }
+      .command-line { fill: none; stroke: #16a34a; stroke-width: 2.2; marker-end: url(#greenArrow); }
+      .dashed { stroke-dasharray: 7 6; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1120" fill="#ffffff"/>
+  <text x="48" y="52" class="title">Multi-Agent Banking Platform</text>
+  <text x="48" y="80" class="subtitle">One authenticated chat interface · read-only queries · explicit, retry-safe sandbox commands</text>
+
+  <!-- Shared request pipeline -->
+  <rect x="36" y="105" width="1528" height="220" rx="16" class="frame"/>
+  <text x="58" y="137" class="section">Shared chat entry · FastAPI · request observability</text>
+  <rect x="66" y="177" width="190" height="76" rx="11" class="node"/>
+  <text x="161" y="205" text-anchor="middle" class="node-title">Customer / client</text>
+  <text x="161" y="228" text-anchor="middle" class="node-copy">JWT + chat message</text>
+
+  <rect x="305" y="177" width="205" height="76" rx="11" class="read-node"/>
+  <text x="407" y="205" text-anchor="middle" class="node-title">JWT authentication</text>
+  <text x="407" y="228" text-anchor="middle" class="node-copy">Trusted customer context</text>
+
+  <rect x="560" y="177" width="190" height="76" rx="11" class="read-node"/>
+  <text x="655" y="205" text-anchor="middle" class="node-title">POST /chat</text>
+  <text x="655" y="228" text-anchor="middle" class="node-copy">Structured request / response</text>
+
+  <rect x="800" y="177" width="180" height="76" rx="11" class="read-node"/>
+  <text x="890" y="205" text-anchor="middle" class="node-title">PII redaction</text>
+  <text x="890" y="228" text-anchor="middle" class="node-copy">Before intent classification</text>
+
+  <rect x="1030" y="177" width="225" height="76" rx="11" class="llm-node"/>
+  <text x="1142" y="205" text-anchor="middle" class="node-title">LLM intent classifier</text>
+  <text x="1142" y="228" text-anchor="middle" class="node-copy">Structured intent + untrusted fields</text>
+
+  <rect x="1305" y="177" width="220" height="76" rx="11" class="node"/>
+  <text x="1415" y="205" text-anchor="middle" class="node-title">Deterministic dispatcher</text>
+  <text x="1415" y="228" text-anchor="middle" class="node-copy">Read · proposal · confirm · cancel</text>
+
+  <path d="M256 215 H305" class="line"/>
+  <path d="M510 215 H560" class="line"/>
+  <path d="M750 215 H800" class="line"/>
+  <path d="M980 215 H1030" class="line"/>
+  <path d="M1255 215 H1305" class="line"/>
+  <text x="60" y="292" class="node-copy">LLM does not receive trusted identity, choose authorization, invoke confirmation, or apply writes.</text>
+  <text x="1110" y="292" class="node-copy">X-Request-ID + route/status/duration telemetry</text>
+
+  <!-- Read-only branch -->
+  <rect x="36" y="360" width="1528" height="265" rx="16" class="read-frame"/>
+  <text x="58" y="392" class="section">Read branch · authorized data retrieval and safe response</text>
+  <rect x="67" y="440" width="170" height="78" rx="11" class="read-node"/>
+  <text x="152" y="468" text-anchor="middle" class="node-title">LangGraph</text>
+  <text x="152" y="491" text-anchor="middle" class="node-copy">Read intent only</text>
+
+  <rect x="272" y="440" width="190" height="78" rx="11" class="read-node"/>
+  <text x="367" y="468" text-anchor="middle" class="node-title">Coordinator</text>
+  <text x="367" y="491" text-anchor="middle" class="node-copy">Fixed domain mapping</text>
+
+  <rect x="497" y="440" width="220" height="78" rx="11" class="read-node"/>
+  <text x="607" y="468" text-anchor="middle" class="node-title">Domain agents</text>
+  <text x="607" y="491" text-anchor="middle" class="node-copy">Accounts · transactions · requests</text>
+
+  <rect x="752" y="440" width="220" height="78" rx="11" class="read-node"/>
+  <text x="862" y="468" text-anchor="middle" class="node-title">Read-only MCP tools</text>
+  <text x="862" y="491" text-anchor="middle" class="node-copy">JWT-scoped customer data</text>
+
+  <rect x="1007" y="440" width="210" height="78" rx="11" class="db-node"/>
+  <text x="1112" y="468" text-anchor="middle" class="node-title">PostgreSQL / Neon</text>
+  <text x="1112" y="491" text-anchor="middle" class="node-copy">Accounts · transactions · requests</text>
+
+  <rect x="1252" y="440" width="270" height="78" rx="11" class="read-node"/>
+  <text x="1387" y="468" text-anchor="middle" class="node-title">Allowlisted presentation</text>
+  <text x="1387" y="491" text-anchor="middle" class="node-copy">PII-redacted DTO → response LLM</text>
+
+  <path d="M1415 253 V344 H152 V440" class="read-line"/>
+  <text x="790" y="344" class="edge-label">read</text>
+  <path d="M237 479 H272" class="read-line"/>
+  <path d="M462 479 H497" class="read-line"/>
+  <path d="M717 479 H752" class="read-line"/>
+  <path d="M972 479 H1007" class="read-line"/>
+  <path d="M1217 479 H1252" class="read-line"/>
+  <path d="M1387 518 V582 H1510 V253" class="read-line dashed"/>
+  <text x="1260" y="574" class="edge-label">generated read answer</text>
+
+  <!-- Command branch -->
+  <rect x="36" y="660" width="1528" height="365" rx="16" class="command-frame"/>
+  <text x="58" y="692" class="section">Command branch · proposal now, explicit decision in a later chat turn</text>
+
+  <rect x="67" y="740" width="210" height="78" rx="11" class="command-node"/>
+  <text x="172" y="768" text-anchor="middle" class="node-title">Command dispatcher</text>
+  <text x="172" y="791" text-anchor="middle" class="node-copy">Validated shape, not authorization</text>
+
+  <rect x="315" y="740" width="210" height="78" rx="11" class="command-node"/>
+  <text x="420" y="768" text-anchor="middle" class="node-title">Proposal-only MCP</text>
+  <text x="420" y="791" text-anchor="middle" class="node-copy">Limit · own transfer · service request</text>
+
+  <rect x="563" y="740" width="220" height="78" rx="11" class="command-node"/>
+  <text x="673" y="768" text-anchor="middle" class="node-title">Deterministic policies</text>
+  <text x="673" y="791" text-anchor="middle" class="node-copy">Ownership · ranges · allowlists</text>
+
+  <rect x="820" y="740" width="220" height="78" rx="11" class="db-node"/>
+  <text x="930" y="768" text-anchor="middle" class="node-title">Pending proposal</text>
+  <text x="930" y="791" text-anchor="middle" class="node-copy">Durable state + PROPOSED audit</text>
+
+  <rect x="1077" y="740" width="230" height="78" rx="11" class="command-node"/>
+  <text x="1192" y="768" text-anchor="middle" class="node-title">Chat proposal summary</text>
+  <text x="1192" y="791" text-anchor="middle" class="node-copy">Exact proposal UUID + no change yet</text>
+
+  <rect x="1344" y="740" width="180" height="78" rx="11" class="node"/>
+  <text x="1434" y="768" text-anchor="middle" class="node-title">Customer reviews</text>
+  <text x="1434" y="791" text-anchor="middle" class="node-copy">Confirm UUID or cancel UUID</text>
+
+  <path d="M1415 253 V630 H172 V740" class="command-line"/>
+  <text x="795" y="630" class="edge-label">proposal command</text>
+  <path d="M277 779 H315" class="command-line"/>
+  <path d="M525 779 H563" class="command-line"/>
+  <path d="M783 779 H820" class="command-line"/>
+  <path d="M1040 779 H1077" class="command-line"/>
+  <path d="M1307 779 H1344" class="command-line"/>
+  <text x="294" y="727" class="edge-label">Idempotency-Key required</text>
+
+  <rect x="205" y="885" width="240" height="78" rx="11" class="command-node"/>
+  <text x="325" y="913" text-anchor="middle" class="node-title">Later chat turn</text>
+  <text x="325" y="936" text-anchor="middle" class="node-copy">“Confirm / cancel &lt;exact UUID&gt;”</text>
+
+  <rect x="495" y="885" width="245" height="78" rx="11" class="command-node"/>
+  <text x="617" y="913" text-anchor="middle" class="node-title">Decision dispatcher</text>
+  <text x="617" y="936" text-anchor="middle" class="node-copy">JWT-owned proposal lookup</text>
+
+  <rect x="790" y="885" width="260" height="78" rx="11" class="command-node"/>
+  <text x="920" y="913" text-anchor="middle" class="node-title">Confirmation rechecks</text>
+  <text x="920" y="936" text-anchor="middle" class="node-copy">Owner · status · expiry · current state</text>
+
+  <rect x="1100" y="885" width="190" height="78" rx="11" class="db-node"/>
+  <text x="1195" y="913" text-anchor="middle" class="node-title">Apply or cancel</text>
+  <text x="1195" y="936" text-anchor="middle" class="node-copy">Atomic write + audit</text>
+
+  <rect x="1340" y="885" width="184" height="78" rx="11" class="db-node"/>
+  <text x="1432" y="913" text-anchor="middle" class="node-title">Banking records</text>
+  <text x="1432" y="936" text-anchor="middle" class="node-copy">Balances · ledger · requests</text>
+
+  <path d="M1434 818 V852 H325 V885" class="line"/>
+  <text x="1020" y="846" class="edge-label">Same JWT + /chat + PII/classification pipeline</text>
+  <path d="M445 924 H495" class="command-line"/>
+  <path d="M740 924 H790" class="command-line"/>
+  <path d="M1050 924 H1100" class="command-line"/>
+  <path d="M1290 924 H1340" class="command-line"/>
+  <path d="M930 818 V868 H920 V885" class="line dashed"/>
+
+  <rect x="36" y="1045" width="1528" height="54" rx="12" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <text x="58" y="1068" class="note">No session store: the exact proposal UUID correlates turns; a decision re-enters authenticated chat and a plain “yes” selects nothing.</text>
+  <text x="58" y="1088" class="note">Chat clients generate one Idempotency-Key per proposal turn and reuse it on retries. Portfolio sandbox; not bank-connected.</text>
+</svg>

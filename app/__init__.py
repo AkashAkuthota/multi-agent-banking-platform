@@ -1,0 +1,1 @@
+"""Banking platform application package."""
